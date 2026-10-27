@@ -1,0 +1,63 @@
+name: Build
+
+on:
+  push:
+    branches: [main]
+    tags: ["v*"]
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build:
+    name: Build NX-Matrix
+    runs-on: ubuntu-latest
+    container:
+      image: devkitpro/devkita64:latest
+    timeout-minutes: 45
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Configure
+        env:
+          REF_TYPE: ${{ github.ref_type }}
+          REF_NAME: ${{ github.ref_name }}
+        run: |
+          VERSION_ARGS=()
+          if [ "$REF_TYPE" = "tag" ]; then
+            VERSION_ARGS=(-DNXMATRIX_VERSION="${REF_NAME#[vV]}")
+          fi
+          cmake -S . -B build -G "Unix Makefiles" \
+            -DCMAKE_TOOLCHAIN_FILE="$DEVKITPRO/cmake/Switch.cmake" \
+            -DCMAKE_BUILD_TYPE=Release \
+            "${VERSION_ARGS[@]}"
+
+      - name: Build
+        run: cmake --build build --parallel "$(nproc)"
+
+      - name: Package
+        run: |
+          test -f nx-matrix.nro
+          test -f build/nx-matrix.nacp
+          SAFE_REF="${GITHUB_REF_NAME//\//-}"
+          echo "ARTIFACT_NAME=NX-Matrix-${SAFE_REF}" >> "$GITHUB_ENV"
+          mkdir -p dist
+          cp nx-matrix.nro dist/
+          cp build/nx-matrix.nacp dist/
+          ls -lh dist
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ env.ARTIFACT_NAME }}
+          path: dist/
+          if-no-files-found: error
+          retention-days: 30

@@ -1,0 +1,13 @@
+CompileFlags:
+  Add:
+    - -std=c++17
+    - -fno-rtti
+    - -Iinclude
+    - -I/opt/devkitpro/libnx/include
+    - -I/opt/devkitpro/portlibs/switch/include
+    - -Ibuild-switch/_deps/plutonium-src/Plutonium/include
+    - -Ibuild-switch/_deps/nlohmann_json-src/include
+  Remove:
+    - -march=*
+    - -mtune=*
+    - -mtp=*

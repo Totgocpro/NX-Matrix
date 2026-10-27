@@ -1,0 +1,102 @@
+name: Release
+
+on:
+  release:
+    types: [published]
+
+permissions:
+  contents: write
+
+concurrency:
+  group: release-${{ github.event.release.tag_name }}
+  cancel-in-progress: false
+
+jobs:
+  build:
+    name: Build release
+    runs-on: ubuntu-latest
+    container:
+      image: devkitpro/devkita64:latest
+    timeout-minutes: 45
+    outputs:
+      tag: ${{ steps.version.outputs.tag }}
+      version: ${{ steps.version.outputs.version }}
+
+    steps:
+      - name: Resolve version
+        id: version
+        env:
+          TAG: ${{ github.event.release.tag_name }}
+        run: |
+          VERSION="${TAG#[vV]}"
+          if [ -z "$VERSION" ]; then
+            echo "Invalid release tag: $TAG" >&2
+            exit 1
+          fi
+          if [[ ! "$VERSION" =~ ^[0-9A-Za-z][0-9A-Za-z._+-]*$ ]]; then
+            echo "Unsupported version characters in tag: $TAG" >&2
+            exit 1
+          fi
+          if [ "${#VERSION}" -gt 16 ]; then
+            echo "Version must be 16 characters or fewer (NACP limit): $VERSION" >&2
+            exit 1
+          fi
+          echo "tag=$TAG" >> "$GITHUB_OUTPUT"
+          echo "version=$VERSION" >> "$GITHUB_OUTPUT"
+
+      - name: Checkout release tag
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ steps.version.outputs.tag }}
+
+      - name: Configure
+        run: |
+          cmake -S . -B build -G "Unix Makefiles" \
+            -DCMAKE_TOOLCHAIN_FILE="$DEVKITPRO/cmake/Switch.cmake" \
+            -DCMAKE_BUILD_TYPE=Release \
+            -DNXMATRIX_VERSION="${{ steps.version.outputs.version }}"
+
+      - name: Build
+        run: cmake --build build --parallel "$(nproc)"
+
+      - name: Package
+        run: |
+          test -f nx-matrix.nro
+          test -f build/nx-matrix.nacp
+          mkdir -p dist
+          cp nx-matrix.nro dist/
+          cp build/nx-matrix.nacp dist/
+          ls -lh dist
+
+      - name: Upload build artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: NX-Matrix-${{ steps.version.outputs.version }}
+          path: dist/
+          if-no-files-found: error
+          retention-days: 7
+
+  release:
+    name: Attach files to release
+    needs: build
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Download artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: NX-Matrix-${{ needs.build.outputs.version }}
+          path: dist
+
+      - name: Create release zip
+        run: |
+          mkdir -p release
+          zip -j "release/NX-Matrix-${{ needs.build.outputs.version }}.zip" \
+            dist/nx-matrix.nro dist/nx-matrix.nacp
+
+      - name: Upload assets
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TAG: ${{ needs.build.outputs.tag }}
+          VERSION: ${{ needs.build.outputs.version }}
+        run: gh release upload "$TAG" "release/NX-Matrix-${VERSION}.zip" --repo "$GITHUB_REPOSITORY" --clobber
