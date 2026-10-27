@@ -11,6 +11,10 @@ concurrency:
   group: release-${{ github.event.release.tag_name }}
   cancel-in-progress: false
 
+defaults:
+  run:
+    shell: bash
+
 jobs:
   build:
     name: Build release
