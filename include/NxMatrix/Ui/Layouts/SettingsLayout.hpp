@@ -11,8 +11,8 @@
 
 namespace NxMatrix::Ui {
 
-// Account and app settings: display name, avatar (from SD), presence, device
-// identity, PIN change, logout (keep data) and full wipe.
+// Account and app settings: display name, avatar (from SD), presence, theme,
+// device identity, PIN change, logout (keep data) and full wipe.
 class SettingsLayout : public pu::ui::Layout {
 public:
     explicit SettingsLayout(std::shared_ptr<AppContext> Context);
@@ -29,6 +29,7 @@ private:
         Avatar,
         PreferencesHeader,
         Presence,
+        DarkMode,
         SecurityHeader,
         Device,
         ChangePin,

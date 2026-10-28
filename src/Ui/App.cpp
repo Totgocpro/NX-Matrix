@@ -68,6 +68,12 @@ void NxMatrixApp::OnLoad() {
     });
 
     m_Context->Store.Initialize();
+    // First launch follows the console theme; a saved preference wins.
+    bool DarkMode = true;
+    if(!m_Context->Store.LoadThemeDark(DarkMode)) {
+        DarkMode = Theme::DetectSystemDark();
+    }
+    Theme::SetDark(DarkMode);
     if(m_Context->Store.HasAccount()) {
         m_Context->Store.LoadPublicProfile(m_Context->Profile);
         m_Context->Nav.ReplaceRoot(UnlockLayout::New(m_Context));

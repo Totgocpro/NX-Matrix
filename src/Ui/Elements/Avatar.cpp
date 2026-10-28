@@ -29,7 +29,14 @@ const pu::ui::Color MutedBackgrounds[] = {
     {0x2D, 0x25, 0x2B, 0xFF},
 };
 
-const pu::ui::Color LetterColors[] = {Theme::Accent, Theme::Success, Theme::Warning, Theme::Danger};
+// Fixed bright glyph colors: avatars keep a dark hashed background in both
+// themes, so these must not follow the (possibly light) UI palette.
+const pu::ui::Color LetterColors[] = {
+    {0x00, 0xE5, 0xFF, 0xFF},
+    {0x3E, 0xDC, 0x97, 0xFF},
+    {0xFF, 0xC2, 0x4D, 0xFF},
+    {0xFF, 0x5D, 0x6C, 0xFF},
+};
 
 // First UTF-8 glyph of the display name, else of the local part of the user id.
 std::string FirstGlyph(const std::string &DisplayName, const std::string &UserId) {

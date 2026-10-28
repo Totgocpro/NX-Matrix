@@ -1,5 +1,5 @@
-// Account settings: display name, SD-card avatar, presence, device identity,
-// PIN change, logout (keep data) and full wipe.
+// Account settings: display name, SD-card avatar, presence, dark/light theme,
+// device identity, PIN change, logout (keep data) and full wipe.
 #include "NxMatrix/Ui/Layouts/SettingsLayout.hpp"
 
 #include "NxMatrix/Core/Dispatcher.hpp"
@@ -9,6 +9,7 @@
 #include "NxMatrix/Ui/Layouts/FilePickerLayout.hpp"
 #include "NxMatrix/Ui/Layouts/HomeServerLayout.hpp"
 #include "NxMatrix/Ui/Layouts/PinLayout.hpp"
+#include "NxMatrix/Ui/Layouts/RoomListLayout.hpp"
 #include "NxMatrix/Ui/Layouts/VerificationLayout.hpp"
 #include "NxMatrix/Ui/Theme.hpp"
 #include "NxMatrix/Util/String.hpp"
@@ -92,6 +93,7 @@ std::string SettingsLayout::ComputeSignature() const {
                             m_Context->Account.Presence + '\x1F' + m_Context->Account.DeviceId + '\x1F' +
                             m_Context->E2ee.GetDeviceIdentity().Ed25519Key;
     Signature += Cross.IsSetUp() ? "|xs:1" : "|xs:0";
+    Signature += Theme::IsDark() ? "|dark:1" : "|dark:0";
     Signature += '|' + std::to_string(m_BackupStatus.Exists) + ':' + m_BackupStatus.Version + ':' +
                  std::to_string(m_BackupStatus.UploadedSessions) + ':' + std::to_string(m_BackupStatus.LocalSessions);
     for(const auto &Device : m_Devices) {
@@ -126,6 +128,7 @@ void SettingsLayout::RebuildRows() {
 
     Push(RowKind::PreferencesHeader, std::make_shared<SectionHeaderRow>(Width, "Preferences"));
     Push(RowKind::Presence, std::make_shared<SimpleRow>(Width, "Presence", m_Context->Account.Presence));
+    Push(RowKind::DarkMode, std::make_shared<ToggleRow>(Width, "Dark mode", Theme::IsDark()));
 
     Push(RowKind::SecurityHeader, std::make_shared<SectionHeaderRow>(Width, "Security"));
     Push(RowKind::Device, std::make_shared<SimpleRow>(Width, "Device", m_Context->Account.DeviceId, KeyHint));
@@ -235,6 +238,20 @@ void SettingsLayout::OnRowActivated(std::size_t Index) {
                 Refresh();
                 Core::JobQueue::Instance().Enqueue([Ctx]() { Ctx->PersistAccount(); });
             });
+        });
+        break;
+    }
+    case RowKind::DarkMode: {
+        const bool Dark = !Theme::IsDark();
+        Theme::SetDark(Dark);
+        m_Context->Store.SaveThemeDark(Dark);
+        // Existing elements captured the previous palette: rebuild the room
+        // list root once this input pass is over so the new colors apply to
+        // the whole UI. Deferred so this layout is not destroyed mid-callback.
+        Core::Dispatcher::Instance().Post([Ctx]() {
+            const bool DarkNow = Theme::IsDark();
+            Ctx->Nav.ReplaceRoot(RoomListLayout::New(Ctx));
+            ShowToast(Ctx->Nav.GetApp(), DarkNow ? "Dark mode on" : "Dark mode off");
         });
         break;
     }

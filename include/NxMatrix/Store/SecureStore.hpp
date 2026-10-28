@@ -62,6 +62,11 @@ public:
     void SaveAvatarImage(const ByteArray &Image);
     ByteArray LoadAvatarImage() const;
 
+    // UI theme preference, kept in clear so it also applies to the unlock
+    // screen. Returns false when the user never chose (use the console theme).
+    bool SaveThemeDark(bool Dark);
+    bool LoadThemeDark(bool &OutDark) const;
+
     bool SaveMediaCache(const Vault &VaultRef, const std::string &CacheKey, const ByteArray &Data);
     bool LoadMediaCache(const Vault &VaultRef, const std::string &CacheKey, ByteArray &OutData) const;
     void ClearMediaCache();

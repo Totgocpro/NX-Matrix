@@ -316,6 +316,29 @@ ByteArray SecureStore::LoadAvatarImage() const {
     return Image;
 }
 
+bool SecureStore::SaveThemeDark(const bool Dark) {
+    nlohmann::json Json = nlohmann::json::object();
+    Json["darkMode"] = Dark;
+    return WriteAtomic(GetRootPath() + "/Theme.json", Serialize(Json));
+}
+
+bool SecureStore::LoadThemeDark(bool &OutDark) const {
+    std::string Text;
+    if(!ReadWholeFile(GetRootPath() + "/Theme.json", Text)) {
+        return false;
+    }
+    const nlohmann::json Json = nlohmann::json::parse(Text, nullptr, false);
+    if(Json.is_discarded() || !Json.is_object()) {
+        return false;
+    }
+    const auto It = Json.find("darkMode");
+    if(It == Json.end() || !It->is_boolean()) {
+        return false;
+    }
+    OutDark = It->get<bool>();
+    return true;
+}
+
 bool SecureStore::SaveMediaCache(const Vault &VaultRef, const std::string &CacheKey, const ByteArray &Data) {
     const ByteArray Sealed = VaultRef.Seal(Data);
     if(Sealed.empty()) {
