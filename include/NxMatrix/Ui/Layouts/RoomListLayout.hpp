@@ -35,6 +35,9 @@ private:
     // Fetches m.room.avatar for joined rooms whose state never carried it
     // (a resumed sync token only delivers changes). One shot per layout.
     void BackfillRoomIcons();
+    // "No rooms yet" only applies once the first /sync answered; until then
+    // the footer shows "Loading..." and the empty message stays hidden.
+    void UpdateLoadingState();
     ListWidget *GetList() const;
     std::string ComputeSignature() const;
 
@@ -43,6 +46,7 @@ private:
     pu::ui::elm::TextBlock::Ref m_Header;
     pu::ui::elm::TextBlock::Ref m_Hint;
     pu::ui::elm::TextBlock::Ref m_EmptyText;
+    pu::ui::elm::TextBlock::Ref m_LoadingText;
     IconButton::Ref m_SettingsTile;
     IconButton::Ref m_AddTile;
     IconButton::Ref m_SearchTile;

@@ -41,6 +41,9 @@ public:
 
     ConnectionState GetConnectionState() const;
     std::string GetSinceToken() const;
+    // True once a /sync batch was applied since Start(). The room list uses it
+    // to tell "no rooms yet" apart from "first fetch still running".
+    bool HasCompletedInitialSync() const;
 
     void SetOnStateChanged(std::function<void(ConnectionState)> Callback);
     void SetOnSyncApplied(std::function<void(const SyncSummary &)> Callback);
@@ -61,6 +64,7 @@ private:
     std::condition_variable m_Ready;
     std::string m_SinceToken;
     std::atomic<bool> m_Running{false};
+    std::atomic<bool> m_HasCompletedInitialSync{false};
     std::atomic<ConnectionState> m_StateCode{ConnectionState::Stopped};
     std::function<void(ConnectionState)> m_OnStateChanged;
     std::function<void(const SyncSummary &)> m_OnSyncApplied;

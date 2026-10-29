@@ -153,6 +153,10 @@ std::string MediaCachePath(const std::string &CacheKey) {
     return std::string(RootPath) + "/Cache/Media/" + HexEncode(Digest.data(), Digest.size()) + ".nxmc";
 }
 
+std::string RoomCachePath() {
+    return std::string(RootPath) + "/Cache/Rooms.nxmc";
+}
+
 std::string Serialize(const nlohmann::json &Value) {
     return Value.dump(-1, ' ', false, nlohmann::json::error_handler_t::replace);
 }
@@ -357,6 +361,38 @@ bool SecureStore::LoadMediaCache(const Vault &VaultRef, const std::string &Cache
 
 void SecureStore::ClearMediaCache() {
     ClearDirectory(GetRootPath() + "/Cache/Media");
+}
+
+bool SecureStore::SaveRoomCache(const Vault &VaultRef, const nlohmann::json &Cache) {
+    const std::string Text = Serialize(Cache);
+    const ByteArray Sealed = VaultRef.Seal(ByteArray(Text.begin(), Text.end()));
+    if(Sealed.empty()) {
+        return false; // vault not open
+    }
+    return WriteAtomic(RoomCachePath(), Sealed);
+}
+
+bool SecureStore::LoadRoomCache(const Vault &VaultRef, nlohmann::json &OutCache) const {
+    ByteArray Sealed;
+    if(!ReadWholeFile(RoomCachePath(), Sealed)) {
+        return false;
+    }
+    ByteArray Plain;
+    if(!VaultRef.Open(Sealed, Plain)) {
+        return false;
+    }
+    const std::string Text(Plain.begin(), Plain.end());
+    const nlohmann::json Json = nlohmann::json::parse(Text, nullptr, false);
+    if(Json.is_discarded() || !Json.is_object()) {
+        return false;
+    }
+    OutCache = Json;
+    return true;
+}
+
+void SecureStore::ClearRoomCache() {
+    std::remove(RoomCachePath().c_str());
+    std::remove((RoomCachePath() + ".tmp").c_str());
 }
 
 void SecureStore::Wipe() {

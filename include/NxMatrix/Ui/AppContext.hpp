@@ -35,6 +35,9 @@ public:
     // Configures the API client, seeds E2EE and starts the sync loop from
     // Account (call once the vault is unlocked and Account is populated).
     void StartSession();
+    // Seals the current room-list snapshot to the SD card so the next launch
+    // can paint it before /sync answers.
+    void SaveRoomCache();
 };
 
 } // namespace NxMatrix::Ui

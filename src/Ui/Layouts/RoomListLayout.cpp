@@ -60,6 +60,14 @@ RoomListLayout::RoomListLayout(std::shared_ptr<AppContext> Context) : m_Context(
     m_EmptyText->SetVisible(false);
     this->Add(m_EmptyText);
 
+    m_LoadingText = pu::ui::elm::TextBlock::New(0, Theme::ScreenHeight - 88, "Loading...");
+    m_LoadingText->SetFont(Theme::FontSmall);
+    m_LoadingText->SetColor(Theme::TextSecondary);
+    const auto LoadingWidth = pu::ui::render::GetTextWidth(Theme::FontSmall, m_LoadingText->GetText());
+    m_LoadingText->SetX(std::max(0, (Theme::ScreenWidth - LoadingWidth) / 2));
+    m_LoadingText->SetVisible(false);
+    this->Add(m_LoadingText);
+
     m_Hint = pu::ui::elm::TextBlock::New(Theme::ScreenMargin, Theme::ScreenHeight - 56,
                                           "A Select  B Back  Up: toolbar  Left/Right: pick  Down: back");
     m_Hint->SetFont(Theme::FontTiny);
@@ -121,6 +129,7 @@ RoomListLayout::RoomListLayout(std::shared_ptr<AppContext> Context) : m_Context(
             }
             m_Dirty = false;
         }
+        UpdateLoadingState();
         BackfillRoomIcons();
     });
 
@@ -226,7 +235,6 @@ void RoomListLayout::RebuildRows() {
     PushSection("Direct messages", DirectMessages);
     PushSection("Rooms", Rooms);
 
-    m_EmptyText->SetVisible(m_RowRoomIds.empty());
     GetList()->SetRows(std::move(Rows));
 
     // Keep the focused room selected across rebuilds (rows shift with sections).
@@ -256,6 +264,13 @@ void RoomListLayout::RebuildRows() {
 
     m_LastSignature = ComputeSignature();
     m_LastVersion = m_Context->State.GetVersion();
+    UpdateLoadingState();
+}
+
+void RoomListLayout::UpdateLoadingState() {
+    const bool Loading = !m_Context->Sync.HasCompletedInitialSync();
+    m_LoadingText->SetVisible(Loading);
+    m_EmptyText->SetVisible(!Loading && m_RowRoomIds.empty());
 }
 
 void RoomListLayout::SetToolbarFocus(std::int32_t Index) {

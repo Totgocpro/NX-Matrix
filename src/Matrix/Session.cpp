@@ -810,6 +810,130 @@ void Session::ApplyFetchedState(const std::string &RoomId, const std::string &Ev
     BumpVersion();
 }
 
+nlohmann::json Session::ExportCache() const {
+    std::lock_guard<std::mutex> Lock(m_Mutex);
+    nlohmann::json Cache = nlohmann::json::object();
+    Cache["version"] = 1;
+    Cache["userId"] = m_OwnUserId;
+    Cache["rooms"] = nlohmann::json::array();
+    Cache["spaceChildren"] = nlohmann::json::object();
+
+    for(const auto &Pair : m_Rooms) {
+        const RoomSummary &Summary = Pair.second.Summary;
+        nlohmann::json Room = nlohmann::json::object();
+        Room["roomId"] = Summary.RoomId;
+        Room["name"] = Summary.Name;
+        Room["topic"] = Summary.Topic;
+        Room["avatarMxc"] = Summary.AvatarMxc;
+        Room["canonicalAlias"] = Summary.CanonicalAlias;
+        Room["membership"] = MembershipToString(Summary.Membership);
+        Room["isDirect"] = Summary.IsDirect;
+        Room["isEncrypted"] = Summary.IsEncrypted;
+        Room["isFavourite"] = Summary.IsFavourite;
+        Room["isLowPriority"] = Summary.IsLowPriority;
+        Room["isSpace"] = Summary.IsSpace;
+        Room["spaceChildCount"] = Summary.SpaceChildCount;
+        Room["memberCount"] = Summary.MemberCount;
+        Room["notificationCount"] = Summary.NotificationCount;
+        Room["highlightCount"] = Summary.HighlightCount;
+        Room["lastActivityTs"] = Summary.LastActivityTs;
+        Room["lastMessagePreview"] = Summary.LastMessagePreview;
+        Room["lastMessageSender"] = Summary.LastMessageSender;
+        Room["readMarkerEventId"] = Summary.ReadMarkerEventId;
+        Cache["rooms"].push_back(std::move(Room));
+
+        if(!Pair.second.SpaceChildren.empty()) {
+            nlohmann::json Children = nlohmann::json::array();
+            for(const auto &ChildPair : Pair.second.SpaceChildren) {
+                const SpaceChild &Child = ChildPair.second;
+                nlohmann::json Entry = nlohmann::json::object();
+                Entry["roomId"] = Child.RoomId;
+                Entry["order"] = Child.Order;
+                Entry["via"] = Child.Via;
+                Entry["originServerTs"] = Child.OriginServerTs;
+                Children.push_back(std::move(Entry));
+            }
+            Cache["spaceChildren"][Pair.first] = std::move(Children);
+        }
+    }
+    return Cache;
+}
+
+void Session::ImportCache(const nlohmann::json &Cache) {
+    if(!Cache.is_object()) {
+        return;
+    }
+    std::lock_guard<std::mutex> Lock(m_Mutex);
+    const auto RoomsIt = Cache.find("rooms");
+    if(RoomsIt == Cache.end() || !RoomsIt->is_array()) {
+        return;
+    }
+    for(const auto &Json : *RoomsIt) {
+        if(!Json.is_object()) {
+            continue;
+        }
+        const std::string RoomId = Util::JsonGetString(Json, "roomId");
+        if(RoomId.empty()) {
+            continue;
+        }
+        RoomData &Room = EnsureRoom(RoomId);
+        RoomSummary &Summary = Room.Summary;
+        Summary.RoomId = RoomId;
+        Summary.Name = Util::JsonGetString(Json, "name");
+        Summary.Topic = Util::JsonGetString(Json, "topic");
+        Summary.AvatarMxc = Util::JsonGetString(Json, "avatarMxc");
+        Summary.CanonicalAlias = Util::JsonGetString(Json, "canonicalAlias");
+        Summary.Membership = MembershipFromString(Util::JsonGetString(Json, "membership"));
+        Summary.IsDirect = Util::JsonGetBool(Json, "isDirect");
+        Summary.IsEncrypted = Util::JsonGetBool(Json, "isEncrypted");
+        Summary.IsFavourite = Util::JsonGetBool(Json, "isFavourite");
+        Summary.IsLowPriority = Util::JsonGetBool(Json, "isLowPriority");
+        Summary.IsSpace = Util::JsonGetBool(Json, "isSpace");
+        Summary.SpaceChildCount = static_cast<std::int32_t>(Util::JsonGetInt(Json, "spaceChildCount"));
+        Summary.MemberCount = Util::JsonGetInt(Json, "memberCount");
+        Summary.NotificationCount = static_cast<std::int32_t>(Util::JsonGetInt(Json, "notificationCount"));
+        Summary.HighlightCount = static_cast<std::int32_t>(Util::JsonGetInt(Json, "highlightCount"));
+        Summary.LastActivityTs = Util::JsonGetInt(Json, "lastActivityTs");
+        Summary.LastMessagePreview = Util::JsonGetString(Json, "lastMessagePreview");
+        Summary.LastMessageSender = Util::JsonGetString(Json, "lastMessageSender");
+        Summary.ReadMarkerEventId = Util::JsonGetString(Json, "readMarkerEventId");
+    }
+
+    const auto ChildrenIt = Cache.find("spaceChildren");
+    if(ChildrenIt != Cache.end() && ChildrenIt->is_object()) {
+        for(auto It = ChildrenIt->begin(); It != ChildrenIt->end(); ++It) {
+            auto RoomIt = m_Rooms.find(It.key());
+            if(RoomIt == m_Rooms.end() || !It.value().is_array()) {
+                continue;
+            }
+            auto &Children = RoomIt->second.SpaceChildren;
+            Children.clear();
+            for(const auto &Json : It.value()) {
+                if(!Json.is_object()) {
+                    continue;
+                }
+                SpaceChild Child;
+                Child.RoomId = Util::JsonGetString(Json, "roomId");
+                if(Child.RoomId.empty()) {
+                    continue;
+                }
+                Child.Order = Util::JsonGetString(Json, "order");
+                if(Json.contains("via") && Json["via"].is_array()) {
+                    for(const auto &Via : Json["via"]) {
+                        if(Via.is_string()) {
+                            Child.Via.push_back(Via.get<std::string>());
+                        }
+                    }
+                }
+                Child.OriginServerTs = Util::JsonGetInt(Json, "originServerTs");
+                Children[Child.RoomId] = std::move(Child);
+            }
+            RoomIt->second.Summary.SpaceChildCount = static_cast<std::int32_t>(Children.size());
+        }
+    }
+    BumpVersion();
+}
+
 std::vector<SpaceChild> Session::GetSpaceChildren(const std::string &SpaceId) const {
     std::lock_guard<std::mutex> Lock(m_Mutex);
     std::vector<SpaceChild> Out;

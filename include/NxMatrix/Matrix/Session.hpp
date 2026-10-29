@@ -45,6 +45,11 @@ public:
     // block would, then bumps the version.
     void ApplyFetchedState(const std::string &RoomId, const std::string &EventType, const nlohmann::json &Content,
                            const std::string &StateKey = {}, std::int64_t Timestamp = 0);
+    // Room-list snapshot persisted by the app layer: summaries and space
+    // children, so the list can paint before /sync answers. Timelines stay
+    // out of it and are paginated on room open.
+    nlohmann::json ExportCache() const;
+    void ImportCache(const nlohmann::json &Cache);
 
     // --- Reads (UI thread) ---
     std::vector<RoomSummary> GetRoomSummaries() const;

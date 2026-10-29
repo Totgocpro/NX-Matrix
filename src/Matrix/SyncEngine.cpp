@@ -64,6 +64,7 @@ void SyncEngine::Start(const std::string &InitialSinceToken) {
         m_Kicked = false;
     }
     m_Running.store(true);
+    m_HasCompletedInitialSync.store(false);
     SetState(ConnectionState::Connecting);
     m_Thread = std::thread(&SyncEngine::RunLoop, this);
 }
@@ -91,6 +92,10 @@ SyncEngine::ConnectionState SyncEngine::GetConnectionState() const {
 std::string SyncEngine::GetSinceToken() const {
     std::lock_guard<std::mutex> Lock(m_Mutex);
     return m_SinceToken;
+}
+
+bool SyncEngine::HasCompletedInitialSync() const {
+    return m_HasCompletedInitialSync.load();
 }
 
 void SyncEngine::SetOnStateChanged(std::function<void(ConnectionState)> Callback) {
@@ -191,6 +196,7 @@ void SyncEngine::RunLoop() {
 
         SyncSummary Summary;
         m_State.ApplySync(Body, Summary);
+        m_HasCompletedInitialSync.store(true);
 
         const std::string NextBatch = Util::JsonGetString(Body, "next_batch");
         {

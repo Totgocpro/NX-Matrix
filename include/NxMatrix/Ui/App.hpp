@@ -26,6 +26,7 @@ private:
     Matrix::SyncEngine::ConnectionState m_SyncState = Matrix::SyncEngine::ConnectionState::Stopped;
     std::size_t m_SyncsSincePersist = 0;
     std::chrono::steady_clock::time_point m_LastPersist{};
+    bool m_RoomCacheSaved = false;
 };
 
 } // namespace NxMatrix::Ui

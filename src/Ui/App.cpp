@@ -57,13 +57,19 @@ void NxMatrixApp::OnLoad() {
 
     m_LastPersist = std::chrono::steady_clock::now();
     m_Context->Sync.SetOnSyncApplied([this](const Matrix::SyncSummary &) {
-        // Reseal the account at most every 10 batches or 30 seconds.
+        // Keep the room cache warm from the very first batch, then reseal it
+        // (and the account) at most every 10 batches or 30 seconds.
+        if(!m_RoomCacheSaved) {
+            m_RoomCacheSaved = true;
+            m_Context->SaveRoomCache();
+        }
         m_SyncsSincePersist++;
         const auto Now = std::chrono::steady_clock::now();
         if(m_SyncsSincePersist >= 10 || Now - m_LastPersist >= std::chrono::seconds(30)) {
             m_SyncsSincePersist = 0;
             m_LastPersist = Now;
             m_Context->PersistAccount();
+            m_Context->SaveRoomCache();
         }
     });
 

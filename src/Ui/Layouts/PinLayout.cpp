@@ -110,9 +110,10 @@ void PinLayout::Finish(const std::string &Secret) {
         m_Context->Nav.ReplaceRoot(RoomListLayout::New(m_Context));
     } else {
         Store::Vault::Create(Secret, m_Context->Vault);
-        // Cached media was sealed with the old key; drop it instead of
-        // leaving unreadable blobs behind.
+        // Cached media and rooms were sealed with the old key; drop them
+        // instead of leaving unreadable blobs behind.
         m_Context->Store.ClearMediaCache();
+        m_Context->Store.ClearRoomCache();
         m_Context->PersistAccount();
         m_Context->Nav.Pop();
     }

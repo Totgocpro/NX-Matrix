@@ -42,6 +42,7 @@ struct PublicProfile {
 //   Profile.json    plaintext PublicProfile (user id + avatar name only)
 //   Avatar.img      plaintext profile picture
 //   Cache/Media/    sealed media cache (key = mxc + size)
+//   Cache/Rooms.nxmc sealed room-list snapshot (summaries + space children)
 class SecureStore {
 public:
     static std::string GetRootPath();
@@ -70,6 +71,10 @@ public:
     bool SaveMediaCache(const Vault &VaultRef, const std::string &CacheKey, const ByteArray &Data);
     bool LoadMediaCache(const Vault &VaultRef, const std::string &CacheKey, ByteArray &OutData) const;
     void ClearMediaCache();
+
+    bool SaveRoomCache(const Vault &VaultRef, const nlohmann::json &Cache);
+    bool LoadRoomCache(const Vault &VaultRef, nlohmann::json &OutCache) const;
+    void ClearRoomCache();
 
     // Deletes every stored file (logout + wipe).
     void Wipe();
